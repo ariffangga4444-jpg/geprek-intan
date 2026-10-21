@@ -1,0 +1,387 @@
+from datetime import datetime
+import sqlite3
+from flask import Flask, g, redirect, render_template_string, request, url_for
+
+app = Flask(__name__)
+DATABASE = "geprek_intan.db"
+
+
+def get_db():
+    db = getattr(g, "_database", None)
+    if db is None:
+        db = g._database = sqlite3.connect(DATABASE)
+        db.row_factory = sqlite3.Row
+    return db
+
+
+@app.teardown_appcontext
+def close_connection(exception):
+    db = getattr(g, "_database", None)
+    if db is not None:
+        db.close()
+
+
+def init_db():
+    with app.app_context():
+        db = get_db()
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS pesanan (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nama TEXT NOT NULL,
+                meja TEXT NOT NULL,
+                catatan TEXT,
+                rincian TEXT NOT NULL,
+                total INTEGER NOT NULL,
+                metode_pembayaran TEXT NOT NULL,
+                status TEXT NOT NULL,
+                waktu TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """
+        )
+        db.commit()
+
+
+init_db()
+
+# Data Menu Makanan + Gambaran/Deskripsi Visual
+MENU = {
+    "Nasi Goreng": {
+        "harga": 15000,
+        "gambar": "🍳🍚",
+        "deskripsi": "Nasi goreng bumbu rempah gurih + telur ceplok & kerupuk",
+    },
+    "Ayam Geprek": {
+        "harga": 15000,
+        "gambar": "🍗🌶️🥗",
+        "deskripsi": "Ayam krispi gurih digeprek sambal pedas + lalapan segar & nasi",
+    },
+    "Mie GenZ": {
+        "harga": 13000,
+        "gambar": "🍜🔥",
+        "deskripsi": "Mie pedas level kekinian dengan taburan pangsit krispi & taburan daun bawang",
+    },
+    "Soto Ayam": {
+        "harga": 15000,
+        "gambar": "🍲🍋",
+        "deskripsi": "Kuah soto kuning segar + suwiran ayam, soun, koya & perasan jeruk nipis",
+    },
+    "Es Teh": {
+        "harga": 5000,
+        "gambar": "🧊🍹",
+        "deskripsi": "Es teh manis segar pelepas dahaga",
+    },
+    "Jus Segar": {
+        "harga": 5000,
+        "gambar": "🧃🧋",
+        "deskripsi": "Jus buah segar racikan harian (Alpukat/Mangga/Jeruk)",
+    },
+}
+
+
+@app.route("/", methods=["GET", "POST"])
+def index():
+    if request.method == "POST":
+        nama = request.form.get("nama")
+        meja = request.form.get("meja")
+        catatan = request.form.get("catatan", "")
+        metode_pembayaran = request.form.get("pembayaran")
+
+        pesanan_items = []
+        total_harga = 0
+
+        for item, detail in MENU.items():
+            qty = request.form.get(f"qty_{item}", 0)
+            if qty and int(qty) > 0:
+                jumlah = int(qty)
+                subtotal = jumlah * detail["harga"]
+                total_harga += subtotal
+                pesanan_items.append(
+                    f"{item} ({jumlah}x) - Rp{subtotal:,}"
+                )
+
+        if not pesanan_items:
+            return "<script>alert('Pilih minimal 1 menu!'); window.history.back();</script>"
+
+        rincian_str = ", ".join(pesanan_items)
+
+        # Penentuan status awal berdasarkan cara bayar
+        if "Transfer Bank" in metode_pembayaran or "QRIS" in metode_pembayaran:
+            status_awal = "Menunggu Verifikasi"
+        else:
+            status_awal = "Diproses"
+
+        db = get_db()
+        db.execute(
+            "INSERT INTO pesanan (nama, meja, catatan, rincian, total, metode_pembayaran, status) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (
+                nama,
+                meja,
+                catatan,
+                rincian_str,
+                total_harga,
+                metode_pembayaran,
+                status_awal,
+            ),
+        )
+        db.commit()
+
+        # Instruksi khusus jika Transfer Bank
+        instruksi_bank = ""
+        if "Transfer Bank" in metode_pembayaran:
+            instruksi_bank = f"""
+            <div style="background:#e3f2fd; border:1px solid #90caf9; padding:15px; border-radius:10px; margin-top:15px; text-align:left; font-size:13px; line-height:1.5;">
+                <b style="color:#1565c0; font-size:14px;">🏦 Instruksi Pembayaran SeaBank:</b><br>
+                <b>Bank:</b> SeaBank<br>
+                <b>Nomor Rekening:</b> <span style="background:#fff; padding:2px 6px; border-radius:4px; font-weight:bold;">901398695544</span><br>
+                <b>Atas Nama:</b> Nurdin Abas<br><br>
+                <b>Petunjuk Pembayaran:</b>
+                <ol style="margin:5px 0 0 18px; padding:0;">
+                    <li>Transfer sesuai total pesanan (<b>Rp{total_harga:,}</b>).</li>
+                    <li>Pastikan nama penerima <b>Nurdin Abas</b>.</li>
+                    <li>Simpan bukti transfer Anda.</li>
+                    <li>Status akan diverifikasi oleh Admin GEPREK INTAN.</li>
+                </ol>
+            </div>
+            """
+
+        status_badge_color = (
+            "#f39c12" if status_awal == "Menunggu Verifikasi" else "#2ecc71"
+        )
+
+        return f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <title>Struk Pesanan - GEPREK INTAN</title>
+            <style>
+                body {{ font-family: sans-serif; background: #eef2f5; padding: 15px; color: #333; }}
+                .card {{ max-width: 480px; margin: 0 auto; background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }}
+                h2 {{ text-align: center; color: #d63031; margin-top: 0; }}
+                .info {{ background: #f8f9fa; padding: 12px; border-radius: 8px; margin-bottom: 15px; font-size: 14px; line-height: 1.6; }}
+                .total {{ font-size: 18px; font-weight: bold; color: #d63031; text-align: right; margin-top: 15px; }}
+                .btn {{ display: block; text-align: center; background: #d63031; color: white; text-decoration: none; padding: 12px; border-radius: 8px; font-weight: bold; margin-top: 20px; }}
+            </style>
+        </head>
+        <body>
+            <div class="card">
+                <h3 style="color:#2ecc71; text-align:center;">✅ Pesanan Berhasil Dikirim!</h3>
+                <h2>🍗 GEPREK INTAN</h2>
+                <div class="info">
+                    <b>Nama Pemesan:</b> {nama}<br>
+                    <b>Meja / Alamat:</b> {meja}<br>
+                    <b>Metode Pembayaran:</b> {metode_pembayaran}<br>
+                    <b>Status Pembayaran:</b> <span style="background:{status_badge_color}; color:white; padding:2px 8px; border-radius:4px; font-weight:bold; font-size:12px;">{status_awal}</span><br>
+                    <b>Catatan:</b> {catatan if catatan else '-'}<br><br>
+                    <b>Rincian Menu:</b><br>{rincian_str}
+                </div>
+                {instruksi_bank}
+                <div class="total">Total Bayar: Rp{total_harga:,}</div>
+                <a href="/" class="btn">Pesan Pesanan Baru</a>
+            </div>
+        </body>
+        </html>
+        """
+
+    menu_html = ""
+    for item, detail in MENU.items():
+        harga = detail["harga"]
+        gambar = detail["gambar"]
+        deskripsi = detail["deskripsi"]
+
+        menu_html += f"""
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:12px; margin-bottom:12px; background:#fff; border-radius:12px; border:1px solid #ffeaa7; box-shadow:0 2px 5px rgba(0,0,0,0.03);">
+            <div style="display:flex; gap:12px; align-items:center; max-width:70%;">
+                <div style="font-size:32px; background:#fff5f5; padding:8px; border-radius:10px;">{gambar}</div>
+                <div>
+                    <b style="font-size:15px; color:#2d3436;">{item}</b>
+                    <div style="font-size:11px; color:#636e72; margin-top:2px;">{deskripsi}</div>
+                    <div style="color:#d63031; font-weight:bold; font-size:14px; margin-top:4px;">Rp {harga:,}</div>
+                </div>
+            </div>
+            <div style="display:flex; align-items:center; gap:6px;">
+                <button type="button" onclick="changeQty('{item}', -1)" style="width:30px; height:30px; border-radius:50%; border:none; background:#d63031; color:white; font-weight:bold; cursor:pointer;">-</button>
+                <input type="number" id="input_{item}" name="qty_{item}" value="0" min="0" readonly style="width:30px; text-align:center; border:none; background:transparent; font-weight:bold; font-size:15px;">
+                <button type="button" onclick="changeQty('{item}', 1)" style="width:30px; height:30px; border-radius:50%; border:none; background:#d63031; color:white; font-weight:bold; cursor:pointer;">+</button>
+            </div>
+        </div>
+        """
+
+    return f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>GEPREK INTAN - Order</title>
+        <style>
+            body {{ font-family: sans-serif; background-color: #f8f9fa; margin: 0; padding: 15px; color: #333; }}
+            .container {{ max-width: 480px; margin: 0 auto; background: white; padding: 20px; border-radius: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); }}
+            .header {{ text-align: center; border-bottom: 2px dashed #ff7675; padding-bottom: 12px; margin-bottom: 20px; }}
+            .header h1 {{ color: #d63031; margin: 0; }}
+            .form-group {{ margin-top: 15px; }}
+            .form-group label {{ font-size: 13px; font-weight: bold; color: #636e72; display: block; margin-bottom: 5px; }}
+            .form-group input, .form-group select, .form-group textarea {{ width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 14px; }}
+            .btn-order {{ width: 100%; background: #d63031; color: white; border: none; padding: 14px; border-radius: 10px; font-size: 16px; font-weight: bold; margin-top: 20px; cursor: pointer; }}
+            .admin-link {{ display: block; text-align: center; margin-top: 15px; color: #636e72; font-size: 13px; text-decoration: none; }}
+        </style>
+        <script>
+            const menuHarga = {{
+                "Nasi Goreng": 15000,
+                "Ayam Geprek": 15000,
+                "Mie GenZ": 13000,
+                "Soto Ayam": 15000,
+                "Es Teh": 5000,
+                "Jus Segar": 5000
+            }};
+            function changeQty(item, delta) {{
+                const input = document.getElementById('input_' + item);
+                let currentVal = parseInt(input.value) || 0;
+                currentVal += delta;
+                if (currentVal < 0) currentVal = 0;
+                input.value = currentVal;
+                calculateTotal();
+            }}
+            function calculateTotal() {{
+                let total = 0;
+                for (let item in menuHarga) {{
+                    const input = document.getElementById('input_' + item);
+                    if (input) {{
+                        total += (parseInt(input.value) || 0) * menuHarga[item];
+                    }}
+                }}
+                document.getElementById('totalAmount').innerText = 'Rp ' + total.toLocaleString('id-ID');
+            }}
+        </script>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>🍗 GEPREK INTAN</h1>
+                <p>Pilihan Menu Makanan & Minuman Lezat</p>
+            </div>
+            <form method="POST">
+                <h3 style="margin-bottom:15px;">📋 Aneka Menu Makanan & Minuman</h3>
+                {menu_html}
+
+                <div class="form-group">
+                    <label>Nama Pemesan *</label>
+                    <input type="text" name="nama" placeholder="Masukkan nama Anda" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Nomor Meja / Alamat Pengiriman *</label>
+                    <input type="text" name="meja" placeholder="Contoh: Meja 05" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Metode Pembayaran *</label>
+                    <select name="pembayaran" required>
+                        <option value="">-- Pilih Pembayaran --</option>
+                        <option value="Tunai di Kasir">💵 Tunai di Kasir</option>
+                        <option value="Transfer Bank SeaBank">🏦 Transfer Bank (SeaBank)</option>
+                        <option value="QRIS (Digital)">📱 Pembayaran Digital QRIS</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Catatan Khusus</label>
+                    <textarea name="catatan" rows="2" placeholder="Contoh: Sambal dipisah, Es teh manis banget"></textarea>
+                </div>
+
+                <div style="display:flex; justify-content:space-between; font-size:18px; font-weight:bold; margin-top:20px;">
+                    <span>Total Bayar:</span>
+                    <span style="color:#d63031;" id="totalAmount">Rp 0</span>
+                </div>
+
+                <button type="submit" class="btn-order">🛒 Kirim Pesanan Sekarang</button>
+            </form>
+            <a href="/admin" class="admin-link">🔒 Masuk ke Halaman Admin</a>
+        </div>
+    </body>
+    </html>
+    """
+
+
+@app.route("/admin")
+def admin():
+    db = get_db()
+    cursor = db.execute("SELECT * FROM pesanan ORDER BY id DESC")
+    all_orders = cursor.fetchall()
+
+    rows = ""
+    for order in all_orders:
+        st = order["status"]
+        if st == "Menunggu Verifikasi":
+            status_color = "#f39c12"
+        elif st == "Diproses":
+            status_color = "#e67e22"
+        else:
+            status_color = "#2ecc71"
+
+        rows += f"""
+        <tr>
+            <td>#{order['id']}</td>
+            <td><b>{order['nama']}</b><br><small>{order['meja']}</small></td>
+            <td>{order['rincian']}<br><small style="color:#7f8c8d;">Catatan: {order['catatan']}</small></td>
+            <td><b>Rp{order['total']:,}</b><br><small>{order['metode_pembayaran']}</small></td>
+            <td><span style="background: {status_color}; color: white; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight:bold;">{st}</span></td>
+            <td>
+                <a href="/admin/status/{order['id']}/Menunggu Verifikasi" style="background:#f39c12; color:white; padding:3px 6px; text-decoration:none; border-radius:3px; font-size:10px;">Verifikasi</a>
+                <a href="/admin/status/{order['id']}/Diproses" style="background:#e67e22; color:white; padding:3px 6px; text-decoration:none; border-radius:3px; font-size:10px;">Proses</a>
+                <a href="/admin/status/{order['id']}/Selesai" style="background:#2ecc71; color:white; padding:3px 6px; text-decoration:none; border-radius:3px; font-size:10px;">Selesai</a>
+            </td>
+        </tr>
+        """
+
+    return f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Admin - GEPREK INTAN</title>
+        <style>
+            body {{ font-family: sans-serif; background: #f8f9fa; padding: 15px; color: #333; }}
+            .container {{ max-width: 850px; margin: 0 auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); }}
+            h2 {{ color: #d63031; margin-top: 0; }}
+            table {{ width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 13px; }}
+            th, td {{ padding: 10px; text-align: left; border-bottom: 1px solid #eee; }}
+            th {{ background: #d63031; color: white; }}
+            .back-btn {{ display: inline-block; margin-bottom: 15px; color: #d63031; text-decoration: none; font-weight: bold; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <a href="/" class="back-btn">← Kembali ke Halaman Pemesanan</a>
+            <h2>🛠️ Admin GEPREK INTAN - Kelola Pesanan</h2>
+            <div style="overflow-x:auto;">
+                <table>
+                    <tr>
+                        <th>ID</th>
+                        <th>Pemesan</th>
+                        <th>Rincian Pesanan</th>
+                        <th>Total & Bayar</th>
+                        <th>Status</th>
+                        <th>Aksi Admin</th>
+                    </tr>
+                    {rows if rows else '<tr><td colspan="6" style="text-align:center;">Belum ada pesanan masuk.</td></tr>'}
+                </table>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+
+
+@app.route("/admin/status/<int:id>/<string:status_baru>")
+def ubah_status(id, status_baru):
+    db = get_db()
+    db.execute(
+        "UPDATE pesanan SET status = ? WHERE id = ?", (status_baru, id)
+    )
+    db.commit()
+    return redirect(url_for("admin"))
+
+
+if __name__ == "__main__":
+    app.run(debug=False, host="127.0.0.1", port=5000)

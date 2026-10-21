@@ -1,0 +1,3 @@
+version: "3"
+agent:
+    authtoken: TOKEN_ANDA_DISINI
