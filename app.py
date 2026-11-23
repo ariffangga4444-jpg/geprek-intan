@@ -20,10 +20,12 @@ app.secret_key = "geprek_intan_secret_key_sejahtera"
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATABASE = os.path.join(BASE_DIR, "geprek_intan.db")
 UPLOAD_FOLDER = os.path.join(BASE_DIR, "static", "uploads")
+MENU_FOLDER = os.path.join(BASE_DIR, "static", "menu")
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp"}
 
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+os.makedirs(MENU_FOLDER, exist_ok=True)
 
 
 def get_brand_image_url():
@@ -129,97 +131,97 @@ init_db()
 MENU_MASTER = {
     "Nasi Putih / Mangkok": {
         "harga": 5000,
-        "gambar": "https://images.unsplash.com/photo-1516684732162-7984084b22af?w=400&q=80",
+        "gambar": "/static/menu/nasi-putih.jpg",
         "deskripsi": "Nasi putih hangat pulen per mangkok",
         "kategori": "Menu Tambahan",
     },
     "Nasi Goreng Spesial + Jus": {
         "harga": 15000,
-        "gambar": "https://images.unsplash.com/photo-1603133872878-684f208fb84b?w=400&q=80",
+        "gambar": "/static/menu/nasi-goreng.jpg",
         "deskripsi": "Nasi goreng bumbu rempah spesial + segarnya minuman jus",
         "kategori": "Makanan Utama",
     },
     "Nasi Ayam Lalapan + Jus": {
         "harga": 15000,
-        "gambar": "https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec?w=400&q=80",
+        "gambar": "/static/menu/ayam-lalapan.png",
         "deskripsi": "Nasi + ayam lalapan sambal segar + minuman jus",
         "kategori": "Makanan Utama",
     },
     "Nasi Ayam Geprek + Jus": {
         "harga": 15000,
-        "gambar": "https://images.unsplash.com/photo-1562967914-608f82629710?w=400&q=80",
+        "gambar": "/static/menu/ayam-geprek.jpg",
         "deskripsi": "Nasi + ayam krispi geprek pedas + minuman jus",
         "kategori": "Makanan Utama",
     },
     "Mie Bakso Biasa": {
         "harga": 15000,
-        "gambar": "https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=400&q=80",
+        "gambar": "/static/menu/mie-bakso.webp",
         "deskripsi": "Mie kuah hangat dengan sajian bakso sapi gurih",
         "kategori": "Mie & Soto",
     },
     "Mie GenZ Pedas (LV 1)": {
         "harga": 10000,
-        "gambar": "https://images.unsplash.com/photo-1612927601601-6638404737ce?w=400&q=80",
+        "gambar": "/static/menu/mie-bakso.webp",
         "deskripsi": "Mie pedas kekinian Level 1",
         "kategori": "Mie & Soto",
     },
     "Mie GenZ Pedas (LV 2)": {
         "harga": 12000,
-        "gambar": "https://images.unsplash.com/photo-1612927601601-6638404737ce?w=400&q=80",
+        "gambar": "/static/menu/mie-bakso.webp",
         "deskripsi": "Mie pedas kekinian Level 2",
         "kategori": "Mie & Soto",
     },
     "Mie GenZ Pedas (LV 3)": {
         "harga": 13000,
-        "gambar": "https://images.unsplash.com/photo-1612927601601-6638404737ce?w=400&q=80",
+        "gambar": "/static/menu/mie-bakso.webp",
         "deskripsi": "Mie pedas kekinian Level 3 mantap",
         "kategori": "Mie & Soto",
     },
     "Soto Ayam + Jus": {
         "harga": 15000,
-        "gambar": "https://images.unsplash.com/photo-1547592166-23ac45744acd?w=400&q=80",
+        "gambar": "/static/menu/soto-ayam.jpg",
         "deskripsi": "Kuah soto kuning segar + suwiran ayam & soun + jus",
         "kategori": "Mie & Soto",
     },
     "Milu Siram / Bindebiluhuta": {
         "harga": 7000,
-        "gambar": "https://images.unsplash.com/photo-1541544741938-0af808871cc0?w=400&q=80",
+        "gambar": "/static/menu/milu-siram.jpg",
         "deskripsi": "Kuliner khas jagung siram kuah lezat",
         "kategori": "Spesial Khas",
     },
     "Ayam Lalapan Tanpa Nasi": {
         "harga": 13000,
-        "gambar": "https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec?w=400&q=80",
+        "gambar": "/static/menu/ayam-lalapan.png",
         "deskripsi": "Ayam krispi + lalapan sambal (tanpa nasi)",
         "kategori": "Menu Ala Carte",
     },
     "Ayam Geprek Tanpa Nasi": {
         "harga": 13000,
-        "gambar": "https://images.unsplash.com/photo-1562967914-608f82629710?w=400&q=80",
+        "gambar": "/static/menu/ayam-geprek.jpg",
         "deskripsi": "Ayam krispi digeprek sambal pedas (tanpa nasi)",
         "kategori": "Menu Ala Carte",
     },
     "Teh Hangat": {
         "harga": 5000,
-        "gambar": "https://images.unsplash.com/photo-1576092768241-dec231879fc3?w=400&q=80",
+        "gambar": "/static/menu/teh-hangat.jpg",
         "deskripsi": "Teh hangat manis pas di badan",
         "kategori": "Minuman & Snack",
     },
     "Fanta Susu": {
         "harga": 10000,
-        "gambar": "https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=400&q=80",
+        "gambar": "/static/menu/fanta-susu.jpg",
         "deskripsi": "Minuman bersoda Fanta dicampur susu kental manis",
         "kategori": "Minuman & Snack",
     },
     "Kopi": {
         "harga": 6000,
-        "gambar": "https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=400&q=80",
+        "gambar": "/static/menu/kopi.jpg",
         "deskripsi": "Kopi hitam racikan nikmat",
         "kategori": "Minuman & Snack",
     },
     "Pisang Stik Goroho": {
         "harga": 12000,
-        "gambar": "https://images.unsplash.com/photo-1599328821758-00a39d892d11?w=400&q=80",
+        "gambar": "/static/menu/pisang-goroho.jpg",
         "deskripsi": "Stik pisang goroho renyah gurih",
         "kategori": "Minuman & Snack",
     },
@@ -359,7 +361,7 @@ def index():
         if tersedia == 1:
             menu_html += f"""
             <div class="menu-card">
-                <img src="{gambar}" alt="{item}">
+                <img src="{gambar}" alt="{item}" onerror="this.onerror=null;this.src='{brand_img}';">
                 <div class="menu-info">
                     <div class="menu-title">{item}</div>
                     <div class="menu-desc">{deskripsi}</div>
@@ -375,7 +377,7 @@ def index():
         else:
             menu_html += f"""
             <div class="menu-card sold-out">
-                <img src="{gambar}" alt="{item}">
+                <img src="{gambar}" alt="{item}" onerror="this.onerror=null;this.src='{brand_img}';">
                 <div class="menu-info">
                     <div class="menu-title" style="text-decoration:line-through; color:#95a5a6;">{item}</div>
                     <div class="menu-desc">{deskripsi}</div>
@@ -399,8 +401,8 @@ def index():
             * {{ box-sizing: border-box; }}
             body {{
                 font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                background: linear-gradient(rgba(18, 12, 12, 0.68), rgba(18, 12, 12, 0.84)),
-                            url('{brand_img}') center / cover fixed no-repeat;
+                background: linear-gradient(rgba(18, 12, 12, 0.58), rgba(18, 12, 12, 0.76)),
+                            url('{brand_img}') center / cover scroll no-repeat;
                 margin: 0;
                 padding: 0;
                 color: #2c3e50;
