@@ -1,12 +1,14 @@
+import json
 import os
 import sqlite3
 from datetime import datetime
 from flask import (
     Flask,
+    Response,
     g,
     redirect,
-    render_template_string,
     request,
+    send_from_directory,
     session,
     url_for,
 )
@@ -22,6 +24,52 @@ ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp"}
 
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+
+def get_brand_image_url():
+    if os.path.exists(os.path.join(BASE_DIR, "geprek-intan.png")):
+        return "/geprek-intan.png"
+    if os.path.exists(os.path.join(BASE_DIR, "static", "geprek-intan.png")):
+        return url_for("static", filename="geprek-intan.png")
+    return "/geprek-intan.png"
+
+
+@app.route("/geprek-intan.png")
+def serve_root_brand_image():
+    if os.path.exists(os.path.join(BASE_DIR, "geprek-intan.png")):
+        return send_from_directory(BASE_DIR, "geprek-intan.png", mimetype="image/png")
+    static_dir = os.path.join(BASE_DIR, "static")
+    if os.path.exists(os.path.join(static_dir, "geprek-intan.png")):
+        return send_from_directory(static_dir, "geprek-intan.png", mimetype="image/png")
+    return "", 404
+
+
+@app.route("/manifest.json")
+def pwa_manifest():
+    icon_url = get_brand_image_url()
+    manifest_data = {
+        "name": "Resto & Cafe Geprek Intan",
+        "short_name": "Geprek Intan",
+        "start_url": "/",
+        "display": "standalone",
+        "background_color": "#120e0e",
+        "theme_color": "#c0392b",
+        "icons": [
+            {
+                "src": icon_url,
+                "sizes": "192x192",
+                "type": "image/png",
+                "purpose": "any",
+            },
+            {
+                "src": icon_url,
+                "sizes": "512x512",
+                "type": "image/png",
+                "purpose": "any",
+            },
+        ],
+    }
+    return Response(json.dumps(manifest_data), mimetype="application/manifest+json")
 
 
 def allowed_file(filename):
@@ -193,6 +241,8 @@ def get_menu_status():
 @app.route("/", methods=["GET", "POST"])
 def index():
     menu_status = get_menu_status()
+    brand_img = get_brand_image_url()
+
     if request.method == "POST":
         nama = request.form.get("nama")
         meja = request.form.get("meja")
@@ -257,10 +307,21 @@ def index():
         <html>
         <head>
             <meta name="viewport" content="width=device-width, initial-scale=1">
+            <meta name="theme-color" content="#c0392b">
+            <link rel="icon" type="image/png" href="{brand_img}">
+            <link rel="apple-touch-icon" href="{brand_img}">
+            <link rel="manifest" href="/manifest.json">
             <title>Struk Pesanan - GEPREK INTAN</title>
             <style>
-                body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f6f9; padding: 20px; color: #333; }}
-                .card {{ max-width: 480px; margin: 0 auto; background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); }}
+                body {{
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                    background: linear-gradient(rgba(18, 12, 12, 0.72), rgba(18, 12, 12, 0.86)),
+                                url('{brand_img}') center / cover fixed no-repeat;
+                    padding: 20px;
+                    color: #333;
+                    min-height: 100vh;
+                }}
+                .card {{ max-width: 480px; margin: 0 auto; background: rgba(255, 255, 255, 0.96); padding: 25px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.22); }}
                 h2 {{ text-align: center; color: #c0392b; margin-top: 0; }}
                 .info {{ background: #fdfefe; border: 1px solid #eaeded; padding: 15px; border-radius: 12px; margin-bottom: 20px; font-size: 14px; line-height: 1.6; }}
                 .total {{ font-size: 18px; font-weight: bold; color: #c0392b; text-align: right; margin-top: 15px; }}
@@ -329,24 +390,37 @@ def index():
     <html>
     <head>
         <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#c0392b">
+        <link rel="icon" type="image/png" href="{brand_img}">
+        <link rel="apple-touch-icon" href="{brand_img}">
+        <link rel="manifest" href="/manifest.json">
         <title>GEPREK INTAN - Resto & Cafe</title>
         <style>
             * {{ box-sizing: border-box; }}
-            body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f8f9fa; margin: 0; padding: 0; color: #2c3e50; padding-bottom: 90px; }}
+            body {{
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                background: linear-gradient(rgba(18, 12, 12, 0.68), rgba(18, 12, 12, 0.84)),
+                            url('{brand_img}') center / cover fixed no-repeat;
+                margin: 0;
+                padding: 0;
+                color: #2c3e50;
+                padding-bottom: 90px;
+                min-height: 100vh;
+            }}
             .hero-banner {{
-                background: linear-gradient(135deg, #1e272e, #2f3640), url('https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=1000&q=80');
+                background: linear-gradient(135deg, rgba(30, 39, 46, 0.86), rgba(47, 54, 64, 0.86)), url('https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=1000&q=80');
                 background-blend-mode: overlay; background-size: cover; background-position: center;
                 color: white; text-align: center; padding: 35px 20px;
                 border-bottom-left-radius: 25px; border-bottom-right-radius: 25px;
-                box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+                box-shadow: 0 10px 25px rgba(0,0,0,0.22);
             }}
             .hero-banner h1 {{ margin: 0; font-size: 26px; font-weight: 800; letter-spacing: 1px; color: #f5cd79; }}
             .hero-banner p {{ margin: 8px 0 0 0; font-size: 13px; color: #dcdde1; }}
             .container {{ max-width: 500px; margin: 0 auto; padding: 15px; }}
             .menu-card {{
                 display: flex; justify-content: space-between; align-items: center;
-                background: white; padding: 12px; margin-bottom: 12px; border-radius: 16px;
-                box-shadow: 0 4px 15px rgba(0,0,0,0.04); border: 1px solid #f1f2f6;
+                background: rgba(255, 255, 255, 0.95); padding: 12px; margin-bottom: 12px; border-radius: 16px;
+                box-shadow: 0 6px 18px rgba(0,0,0,0.16); border: 1px solid rgba(255,255,255,0.7);
             }}
             .menu-card img {{ width: 75px; height: 75px; object-fit: cover; border-radius: 12px; border: 1px solid #eee; }}
             .menu-info {{ flex: 1; padding: 0 12px; }}
@@ -356,23 +430,23 @@ def index():
             .qty-control {{ display: flex; align-items: center; background: #f8f9fa; padding: 4px; border-radius: 25px; border: 1px solid #dfe4ea; }}
             .qty-btn {{ width: 30px; height: 30px; border-radius: 50%; border: none; background: #e74c3c; color: white; font-weight: bold; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; }}
             .qty-input {{ width: 28px; text-align: center; border: none; background: transparent; font-weight: bold; font-size: 14px; color: #2f3640; }}
-            .sold-out {{ background: #f1f2f6; opacity: 0.65; }}
+            .sold-out {{ background: rgba(241, 242, 246, 0.9); opacity: 0.82; }}
             .badge-habis {{ background: #c0392b; color: white; padding: 5px 10px; border-radius: 8px; font-size: 11px; font-weight: bold; }}
-            .section-title {{ font-size: 16px; font-weight: 700; color: #2f3640; margin: 25px 0 12px 5px; border-left: 4px solid #e74c3c; padding-left: 8px; }}
-            .form-box {{ background: white; padding: 20px; border-radius: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.04); margin-bottom: 20px; border: 1px solid #f1f2f6; }}
+            .section-title {{ font-size: 16px; font-weight: 700; color: #f5cd79; margin: 25px 0 12px 5px; border-left: 4px solid #e74c3c; padding-left: 8px; text-shadow: 0 1px 4px rgba(0,0,0,0.6); }}
+            .form-box {{ background: rgba(255, 255, 255, 0.96); padding: 20px; border-radius: 16px; box-shadow: 0 6px 18px rgba(0,0,0,0.16); margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.7); }}
             .form-group {{ margin-bottom: 15px; }}
             .form-group label {{ font-size: 12px; font-weight: bold; color: #718093; display: block; margin-bottom: 6px; }}
             .form-group input, .form-group select, .form-group textarea {{ width: 100%; padding: 12px; border: 1px solid #dfe4ea; border-radius: 10px; box-sizing: border-box; font-size: 14px; background: #fdfefe; }}
             .bank-info {{ background:#e8f4fd; border:1px solid #bbeeff; padding:15px; border-radius:12px; font-size:12px; margin-top:10px; display:none; color: #004080; line-height: 1.5; }}
             .floating-bar {{
-                position: fixed; bottom: 0; left: 0; right: 0; background: white; padding: 15px 20px;
-                box-shadow: 0 -5px 25px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center;
+                position: fixed; bottom: 0; left: 0; right: 0; background: rgba(255, 255, 255, 0.97); padding: 15px 20px;
+                box-shadow: 0 -5px 25px rgba(0,0,0,0.18); display: flex; justify-content: space-between; align-items: center;
                 border-top-left-radius: 20px; border-top-right-radius: 20px; z-index: 1000;
             }}
             .total-text {{ font-size: 13px; color: #718093; }}
             .total-price {{ font-size: 18px; font-weight: 800; color: #e74c3c; }}
             .btn-order {{ background: linear-gradient(135deg, #e74c3c, #c0392b); color: white; border: none; padding: 12px 24px; border-radius: 12px; font-size: 15px; font-weight: bold; cursor: pointer; }}
-            .admin-link {{ display: block; text-align: center; margin: 20px 0 40px 0; color: #718093; font-size: 13px; text-decoration: none; font-weight: 600; }}
+            .admin-link {{ display: block; text-align: center; margin: 20px 0 40px 0; color: #f5cd79; font-size: 13px; text-decoration: none; font-weight: 600; text-shadow: 0 1px 4px rgba(0,0,0,0.6); }}
         </style>
         <script>
             const menuHarga = {menu_js_prices};
@@ -472,6 +546,7 @@ def index():
 @app.route("/admin-login", methods=["GET", "POST"])
 def admin_login():
     error = ""
+    brand_img = get_brand_image_url()
     if request.method == "POST":
         username = request.form.get("username")
         password = request.form.get("password")
@@ -486,6 +561,10 @@ def admin_login():
     <html>
     <head>
         <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#c0392b">
+        <link rel="icon" type="image/png" href="{brand_img}">
+        <link rel="apple-touch-icon" href="{brand_img}">
+        <link rel="manifest" href="/manifest.json">
         <title>Login Admin - GEPREK INTAN</title>
         <style>
             body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f6f9; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }}
@@ -527,6 +606,7 @@ def admin():
     if not session.get("logged_in"):
         return redirect(url_for("admin_login"))
 
+    brand_img = get_brand_image_url()
     db = get_db()
     cursor = db.execute("SELECT * FROM pesanan ORDER BY id DESC")
     all_orders = cursor.fetchall()
@@ -595,6 +675,10 @@ def admin():
     <html>
     <head>
         <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#c0392b">
+        <link rel="icon" type="image/png" href="{brand_img}">
+        <link rel="apple-touch-icon" href="{brand_img}">
+        <link rel="manifest" href="/manifest.json">
         <title>Admin Resto - GEPREK INTAN</title>
         <style>
             body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f6f9; padding: 20px; color: #333; }}
